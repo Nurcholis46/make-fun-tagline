@@ -21,7 +21,7 @@
 // /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const TAGLINE = "Enter a bounty. Beat the field. Take the prize — that's make.fun.";
@@ -110,6 +110,14 @@ if (written.endsWith("\n") || written.endsWith("\r")) {
 // would change the file's size and ship a different text to the judge.
 if (Buffer.byteLength(written, "utf8") !== Buffer.byteLength(TAGLINE, "utf8")) {
   throw new Error("entry file byte length does not match the gated line");
+}
+// The grader collects outputs as another user: prove the finished file
+// is world-readable (mode 0644), not just written that way — a umask or
+// filesystem quirk that stripped the read bits would otherwise fail the
+// run with "<path> is not readable" after the entry already shipped.
+const mode = statSync(outPath).mode & 0o777;
+if (mode !== 0o644) {
+  throw new Error(`entry file must be mode 0644, got 0${mode.toString(8)}`);
 }
 
 console.log(`wrote entry.txt (${[...TAGLINE].length} chars) to`, outDir);
